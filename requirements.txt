@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+httpx
+python-dotenv
+cryptography
+pyHanko
+pyhanko-certvalidator
+asn1crypto
+pydantic
