@@ -1,0 +1,17 @@
+import base64
+import hashlib
+import secrets
+
+
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
+def gerar_pkce() -> dict:
+    code_verifier = _b64url(secrets.token_bytes(64))
+    code_challenge = _b64url(hashlib.sha256(code_verifier.encode()).digest())
+
+    return {
+        "code_verifier": code_verifier,
+        "code_challenge": code_challenge,
+    }
