@@ -392,3 +392,24 @@ Sugestão:
 MIT
 ```
 
+## ☕ Apoie o projeto
+
+Este projeto é open source e continuará evoluindo com novas funcionalidades voltadas para assinatura digital ICP-Brasil, PAdES e integração com SERPRO ID.
+
+Se este projeto te ajudou de alguma forma e você quiser apoiar a continuidade do desenvolvimento:
+
+PIX de apoio:
+📧 [contato@cleberferreira.eti.br](mailto:contato@cleberferreira.eti.br)
+
+Contribuições também são muito bem-vindas através de:
+
+* pull requests
+* issues
+* melhorias
+* documentação
+* compartilhamentos
+
+🔗 GitHub:
+https://github.com/cleberDeveloper/serpro-python-pades-service
+
+
