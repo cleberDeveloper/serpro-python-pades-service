@@ -2,21 +2,23 @@
 
 Serviço em **Python + FastAPI + pyHanko** para assinatura digital de PDFs no padrão **PAdES**, utilizando **SERPRO ID** com assinatura remota.
 
-O objetivo deste projeto é permitir que uma aplicação envie:
+---
 
-```json
-{
-  "cpf": "CPF_DO_TITULAR",
-  "pdfBase64": "PDF_EM_BASE64",
-  "alias": "Nome do documento"
-}
+# ⚠ Requisito obrigatório
+
+Este projeto deve ser executado com:
+
+```text
+Python 3.12
 ```
 
-e receba posteriormente o PDF assinado digitalmente em Base64.
+Atualmente algumas dependências do ecossistema de assinatura digital ainda não possuem compatibilidade estável com Python 3.14.
+
+Não utilize Python 3.14 neste projeto.
 
 ---
 
-## Visão geral do fluxo
+# Visão geral do fluxo
 
 ```text
 1. Cliente envia CPF + PDF Base64
@@ -35,9 +37,9 @@ e receba posteriormente o PDF assinado digitalmente em Base64.
 
 ---
 
-## Tecnologias utilizadas
+# Tecnologias utilizadas
 
-- Python 3
+- Python 3.12
 - FastAPI
 - Uvicorn
 - pyHanko
@@ -50,123 +52,100 @@ e receba posteriormente o PDF assinado digitalmente em Base64.
 
 ---
 
-## Estrutura do projeto
+# Instalação do zero
 
-```text
-serpro-python-pades-service/
-├── app/
-│   ├── main.py
-│   ├── config.py
-│   ├── serpro_client.py
-│   ├── pades_signer.py
-│   ├── job_store.py
-│   ├── session_store.py
-│   ├── crypto_store.py
-│   ├── pkce.py
-│   └── logger.py
-├── storage/
-│   ├── jobs/
-│   └── sessions/
-├── logs/
-├── requirements.txt
-├── ecosystem.config.cjs
-├── .env.example
-├── .gitignore
-└── README.md
+## 1. Instalar dependências básicas
+
+```bash
+sudo apt update
+sudo apt install unzip curl openssl nodejs npm -y
+sudo npm install -g pm2
 ```
 
 ---
 
-# 1. Pré-requisitos
+## 2. Instalar UV
 
-Servidor Linux Ubuntu com acesso SSH.
-
-Instale os pacotes básicos:
+O projeto utiliza o UV para garantir o uso correto do Python 3.12.
 
 ```bash
-sudo apt update
-sudo apt install python3 python3-venv python3-pip unzip curl openssl -y
-```
-
-Se for usar PM2:
-
-```bash
-sudo apt install nodejs npm -y
-sudo npm install -g pm2
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.local/bin/env
 ```
 
 Verifique:
 
 ```bash
-python3 --version
-pip3 --version
-pm2 --version
+uv --version
 ```
 
 ---
 
-# 2. Baixar ou clonar o projeto
+## 3. Instalar Python 3.12
 
-Exemplo usando Git:
+```bash
+uv python install 3.12
+```
+
+Verifique:
+
+```bash
+uv python list
+```
+
+---
+
+## 4. Clonar o projeto
 
 ```bash
 cd /opt
+
 git clone https://github.com/SEU_USUARIO/serpro-python-pades-service.git
-cd /opt/serpro-python-pades-service
-```
 
-Ou, se estiver usando ZIP:
-
-```bash
-cd /opt
-unzip serpro-python-pades-service-final.zip -d /opt
-mv /opt/serpro-python-pades-service-final /opt/serpro-python-pades-service
 cd /opt/serpro-python-pades-service
 ```
 
 ---
 
-# 3. Criar ambiente virtual Python
+## 5. Criar ambiente virtual Python
 
 ```bash
-cd /opt/serpro-python-pades-service
-
-python3 -m venv .venv
+uv venv --python 3.12 .venv
 source .venv/bin/activate
 ```
 
-Atualize o `pip`:
+Confirme:
 
 ```bash
-pip install --upgrade pip
+python --version
 ```
 
-Instale as dependências:
+Resultado esperado:
 
-```bash
-pip install -r requirements.txt
+```text
+Python 3.12.x
 ```
 
 ---
 
-# 4. Criar arquivo `.env`
+## 6. Instalar dependências Python
 
-Este arquivo contém configurações sensíveis e **não deve ser enviado ao GitHub**.
+```bash
+uv pip install -r requirements.txt
+```
 
-Crie a partir do exemplo:
+---
+
+# Configuração
+
+## 1. Criar arquivo .env
 
 ```bash
 cp .env.example .env
 nano .env
 ```
 
-Se o arquivo `.env.example` não existir, crie manualmente:
-
-```bash
-nano .env
-```
-
-Conteúdo base:
+Conteúdo:
 
 ```env
 PORT=3333
@@ -192,77 +171,26 @@ SERPRO_SIGNATURE_FORMAT=RAW
 JOBS_DIR=/opt/serpro-python-pades-service/storage/jobs
 SESSIONS_DIR=/opt/serpro-python-pades-service/storage/sessions
 
-ENCRYPTION_KEY_BASE64=COLE_AQUI_A_CHAVE_BASE64_DE_32_BYTES
+ENCRYPTION_KEY_BASE64=COLE_AQUI_A_CHAVE
 ```
 
 ---
 
-# 5. Gerar chave de criptografia
-
-O serviço usa AES-256-GCM para criptografar os arquivos de sessão e jobs.
-
-Gere uma chave:
+## 2. Gerar chave AES-256
 
 ```bash
 openssl rand -base64 32
 ```
 
-Copie o resultado e coloque no `.env`:
+Cole no `.env`:
 
 ```env
-ENCRYPTION_KEY_BASE64=SUA_CHAVE_GERADA
+ENCRYPTION_KEY_BASE64=SUA_CHAVE
 ```
-
-A chave precisa representar exatamente **32 bytes**.
 
 ---
 
-# 6. Configurações importantes do SERPRO
-
-## 6.1 Client ID e Client Secret
-
-Preencha no `.env`:
-
-```env
-SERPRO_CLIENT_ID=SEU_CLIENT_ID
-SERPRO_CLIENT_SECRET=SEU_CLIENT_SECRET
-```
-
-## 6.2 Callback URL
-
-Configure no SERPRO a mesma URL informada no `.env`:
-
-```env
-CALLBACK_URL=http://SEU_IP_OU_DOMINIO:3333/serpro/callback
-```
-
-Exemplo:
-
-```env
-CALLBACK_URL=http://69.162.109.68:3333/serpro/callback
-```
-
-Em produção, recomenda-se usar HTTPS:
-
-```env
-CALLBACK_URL=https://seu-dominio.com.br/serpro/callback
-```
-
-## 6.3 Formato de assinatura
-
-Este projeto usa:
-
-```env
-SERPRO_SIGNATURE_FORMAT=RAW
-```
-
-O SERPRO assina o hash solicitado e o **pyHanko monta o PDF PAdES**.
-
-Não altere para `CMS` neste projeto.
-
----
-
-# 7. Criar pastas necessárias
+## 3. Criar diretórios
 
 ```bash
 mkdir -p storage/jobs
@@ -272,22 +200,15 @@ mkdir -p logs
 
 ---
 
-# 8. Testar manualmente
-
-Ative o ambiente virtual:
+# Teste manual
 
 ```bash
-cd /opt/serpro-python-pades-service
 source .venv/bin/activate
-```
 
-Execute:
-
-```bash
 uvicorn app.main:app --host 0.0.0.0 --port 3333
 ```
 
-Em outro terminal, teste:
+Em outro terminal:
 
 ```bash
 curl http://localhost:3333/
@@ -299,28 +220,15 @@ Resposta esperada:
 {
   "service": "serpro-python-pades-service",
   "status": "online",
-  "signatureFormat": "RAW",
-  "scope": "signature_session"
+  "signatureFormat": "RAW"
 }
-```
-
-Para parar o teste manual:
-
-```bash
-CTRL + C
 ```
 
 ---
 
-# 9. Rodar com PM2
+# PM2
 
-O projeto inclui o arquivo:
-
-```text
-ecosystem.config.cjs
-```
-
-Conteúdo recomendado:
+## ecosystem.config.cjs
 
 ```javascript
 module.exports = {
@@ -331,87 +239,51 @@ module.exports = {
       args: "app.main:app --host 0.0.0.0 --port 3333",
       cwd: "/opt/serpro-python-pades-service",
       interpreter: "none",
-      instances: 1,
-      exec_mode: "fork",
       autorestart: true,
       watch: false,
-      max_memory_restart: "500M",
-      error_file: "./logs/error.log",
-      out_file: "./logs/out.log",
-      log_file: "./logs/combined.log",
-      time: true
+      max_memory_restart: "500M"
     }
   ]
 };
 ```
 
-Atenção ao item:
+⚠ Importantíssimo:
 
 ```javascript
 interpreter: "none"
 ```
 
-Sem isso, o PM2 pode tentar executar o `uvicorn` como se fosse JavaScript/Node.
+Sem isso o PM2 tenta executar `uvicorn` como JavaScript.
 
-Suba o serviço:
+---
+
+## Subir serviço
 
 ```bash
-cd /opt/serpro-python-pades-service
-
 pm2 delete serpro-python-pades-service || true
 pm2 start ecosystem.config.cjs --update-env
 pm2 save
 ```
 
-Ver logs:
+Logs:
 
 ```bash
 pm2 logs serpro-python-pades-service
 ```
 
-Ver status:
-
-```bash
-pm2 list
-```
-
 ---
 
-# 10. Inicializar automaticamente após reboot
+# Endpoints
 
-Execute:
-
-```bash
-pm2 startup
-```
-
-O PM2 vai exibir um comando. Copie e execute exatamente o comando gerado.
-
-Depois:
-
-```bash
-pm2 save
-```
-
----
-
-# 11. Endpoints da API
-
-## 11.1 Verificar status
+## Status
 
 ```http
 GET /
 ```
 
-Exemplo:
-
-```bash
-curl http://localhost:3333/
-```
-
 ---
 
-## 11.2 Criar solicitação de assinatura
+## Criar assinatura
 
 ```http
 POST /assinaturas
@@ -428,167 +300,29 @@ Body:
 }
 ```
 
-Exemplo com curl:
-
-```bash
-curl -X POST http://localhost:3333/assinaturas \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cpf": "00000000000",
-    "alias": "Contrato Teste",
-    "pdfBase64": "JVBERi0x..."
-  }'
-```
-
-Resposta esperada:
-
-```json
-{
-  "sucesso": true,
-  "protocolo": "uuid-do-protocolo",
-  "status": "AGUARDANDO_AUTORIZACAO",
-  "urlAutorizacao": "https://serproid.serpro.gov.br/..."
-}
-```
-
-Abra a `urlAutorizacao` no navegador para autorizar.
-
 ---
 
-## 11.3 Callback SERPRO
-
-```http
-GET /serpro/callback?code=...&state=...
-```
-
-Este endpoint é chamado automaticamente pelo SERPRO após autorização.
-
----
-
-## 11.4 Consultar status da assinatura
+## Consultar assinatura
 
 ```http
 GET /assinaturas/{protocolo}
 ```
 
-Exemplo:
-
-```bash
-curl http://localhost:3333/assinaturas/SEU_PROTOCOLO
-```
-
-Enquanto processa:
-
-```json
-{
-  "sucesso": true,
-  "status": "ASSINANDO_PDF",
-  "pdfAssinadoBase64": null
-}
-```
-
-Quando finalizar:
-
-```json
-{
-  "sucesso": true,
-  "status": "ASSINADO",
-  "pdfAssinadoBase64": "JVBERi0x..."
-}
-```
-
 ---
 
-# 12. Teste com Postman
-
-## Criar assinatura
-
-Método:
-
-```text
-POST
-```
-
-URL:
-
-```text
-http://SEU_IP:3333/assinaturas
-```
-
-Headers:
-
-```text
-Content-Type: application/json
-```
-
-Body:
-
-```json
-{
-  "cpf": "CPF_DO_TITULAR",
-  "alias": "Contrato Teste",
-  "pdfBase64": "BASE64_DO_PDF"
-}
-```
-
-Depois:
-
-1. Copie a `urlAutorizacao`
-2. Abra no navegador
-3. Autorize no SERPRO
-4. Consulte o protocolo:
-
-```text
-GET http://SEU_IP:3333/assinaturas/PROTOCOLO
-```
-
----
-
-# 13. Gerar Base64 de um PDF para teste
-
-No Linux:
-
-```bash
-base64 -w 0 arquivo.pdf > arquivo_base64.txt
-```
-
-Copie o conteúdo de:
-
-```text
-arquivo_base64.txt
-```
-
-e use no campo:
-
-```json
-"pdfBase64": "..."
-```
-
----
-
-# 14. Decodificar PDF assinado retornado
-
-Se a API retornar `pdfAssinadoBase64`, você pode salvar como arquivo:
-
-```bash
-echo "BASE64_AQUI" | base64 -d > assinado.pdf
-```
-
----
-
-# 15. Segurança para GitHub
+# GitHub
 
 Nunca envie:
 
 ```text
 .env
+.venv/
 storage/jobs/*
 storage/sessions/*
 logs/*
-.venv/
 ```
 
-O `.gitignore` deve conter:
+`.gitignore`:
 
 ```gitignore
 .env
@@ -603,154 +337,58 @@ logs/*
 !logs/.gitkeep
 ```
 
-Antes do `git push`, confira:
-
-```bash
-git status
-```
-
-Se o `.env` aparecer, remova do controle:
-
-```bash
-git rm --cached .env
-```
-
-Verifique se há segredos no projeto:
-
-```bash
-grep -R "SERPRO_CLIENT_SECRET\\|SERPRO_CLIENT_ID\\|ENCRYPTION_KEY_BASE64" . --exclude-dir=.git --exclude=.env
-```
-
-O ideal é aparecer somente no `.env.example`, com valores fictícios.
-
 ---
 
-# 16. Troubleshooting
+# Troubleshooting
 
-## 16.1 PM2 mostra `Unexpected identifier 'uvicorn'`
+## PM2 mostra “Unexpected identifier 'uvicorn'”
 
-O PM2 está tentando executar o `uvicorn` como JavaScript.
-
-Corrija o `ecosystem.config.cjs`:
+Falta:
 
 ```javascript
 interpreter: "none"
 ```
 
-Depois:
-
-```bash
-pm2 delete serpro-python-pades-service || true
-pm2 start ecosystem.config.cjs --update-env
-```
-
 ---
 
-## 16.2 Erro de variável de ambiente ausente
+## pydantic-core falhando
 
-Confira o `.env`:
+Você provavelmente está usando Python 3.14.
 
-```bash
-cat .env
-```
-
-Teste se está no diretório correto:
+Confira:
 
 ```bash
-pwd
+python --version
 ```
 
-Deve estar em:
+O correto é:
 
 ```text
-/opt/serpro-python-pades-service
+Python 3.12.x
 ```
 
 ---
 
-## 16.3 Erro na chave de criptografia
+# Produção
 
-Mensagem comum:
+Recomendado:
 
-```text
-ENCRYPTION_KEY_BASE64 precisa representar exatamente 32 bytes
-```
-
-Gere novamente:
-
-```bash
-openssl rand -base64 32
-```
-
-Atualize no `.env`.
+- HTTPS com Nginx
+- Reverse proxy
+- Backup seguro
+- Limpeza automática de jobs antigos
+- Monitoramento de logs
+- Assinatura visual
+- Carimbo do tempo TSA
+- PAdES-LT/LTV
 
 ---
 
-## 16.4 Erro ao instalar dependências Python
+# Licença
 
-Atualize o `pip`:
-
-```bash
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
----
-
-## 16.5 Serviço não responde na porta 3333
-
-Confira se está rodando:
-
-```bash
-pm2 list
-pm2 logs serpro-python-pades-service
-```
-
-Confira se a porta está aberta:
-
-```bash
-ss -tulpn | grep 3333
-```
-
-Se usar firewall:
-
-```bash
-sudo ufw allow 3333/tcp
-```
-
----
-
-# 17. Observações de produção
-
-Recomendado para produção:
-
-- usar HTTPS com Nginx reverse proxy
-- não expor porta 3333 diretamente
-- proteger o `.env`
-- usar backups seguros
-- monitorar logs
-- validar PDFs assinados no ITI
-- considerar fila assíncrona para alto volume
-- implementar limpeza de jobs antigos
-- implementar assinatura visual
-- implementar carimbo do tempo TSA para PAdES-LT/LTV
-
----
-
-# 18. Licença
-
-Defina a licença conforme sua necessidade.
-
-Sugestão para projeto open source:
+Sugestão:
 
 ```text
 MIT
 ```
 
----
-
-# 19. Aviso
-
-Este projeto é um exemplo técnico de integração com SERPRO ID para assinatura digital PAdES.  
-Antes de uso em produção, valide juridicamente, tecnicamente e operacionalmente o fluxo conforme os requisitos do seu negócio.
