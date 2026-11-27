@@ -3,7 +3,6 @@ import hashlib
 from io import BytesIO
 
 from asn1crypto import x509
-from pyhanko.pdf_utils.generic import DictionaryObject
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
 from pyhanko.sign import fields
 from pyhanko.sign.signers import Signer
@@ -96,25 +95,6 @@ class SerproRemoteSigner(Signer):
         return base64.b64decode(clean)
 
 
-def _next_signature_field_name(writer: IncrementalPdfFileWriter) -> str:
-    try:
-        form_fields = writer.root["/AcroForm"]["/Fields"]
-    except KeyError:
-        return "Signature1"
-
-    # New signatures are top-level fields. Leave existing fields untouched.
-    names = set()
-    for field_ref in form_fields:
-        field = field_ref.get_object()
-        if isinstance(field, DictionaryObject) and "/T" in field:
-            names.add(field["/T"])
-
-    number = 1
-    while f"Signature{number}" in names:
-        number += 1
-    return f"Signature{number}"
-
-
 async def assinar_pdf_pades(
     *,
     pdf_base64: str,
@@ -136,8 +116,14 @@ async def assinar_pdf_pades(
 
     with BytesIO(input_pdf) as input_stream:
         writer = IncrementalPdfFileWriter(input_stream)
+        # Include filled and empty signature fields to avoid collisions.
+        names = {name for name, _, _ in fields.enumerate_sig_fields(writer)}
+        index = 1
+        while any(name == f"Signature{index}" or name.startswith(f"Signature{index}.") for name in names):
+            index += 1
+        field_name = f"Signature{index}"
         metadata = PdfSignatureMetadata(
-            field_name=_next_signature_field_name(writer),
+            field_name=field_name,
             md_algorithm="sha256",
             subfilter=fields.SigSeedSubFilter.PADES,
         )
